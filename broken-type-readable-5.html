@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broken Type Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(30, 30, 30, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            max-width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 3px;
+        }
+        #toggleControls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(30, 30, 30, 0.95);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+        #toggleControls:hover {
+            background: rgba(50, 50, 50, 0.95);
+        }
+        .top-buttons {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        #downloadBtn {
+            width: 16px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            cursor: pointer;
+        }
+        #downloadBtn:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+        #colorBtn {
+            width: 16px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #colorBtn:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+    </style>
+</head>
+<body>
+    <button id="toggleControls" onclick="togglePanel()">≡</button>
+    
+    <div class="top-buttons">
+        <button id="colorBtn" onclick="changeColors()"></button>
+        <button id="downloadBtn" onclick="downloadImage()"></button>
+    </div>
+    
+    <div id="controls" style="display: none;">
+        <div class="control-group">
+            <input type="range" id="fontSizeSlider" min="40" max="300" value="140" step="10">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="minSegmentSlider" min="3" max="20" value="15" step="1">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="maxSegmentSlider" min="10" max="50" value="25" step="1">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="maxOffsetXSlider" min="0" max="150" value="15" step="5">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="maxOffsetYSlider" min="0" max="150" value="15" step="5">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="maxRotationSlider" min="0" max="3.14" value="0.2" step="0.1">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="minScaleSlider" min="0.3" max="1.0" value="0.95" step="0.05">
+        </div>
+        
+        <div class="control-group">
+            <input type="range" id="maxScaleSlider" min="1.0" max="2.5" value="1.05" step="0.05">
+        </div>
+    </div>
+    
+    <script>
+// Control variables
+let controlVars = {
+    fontSize: 140,
+    minSegmentHeight: 15,
+    maxSegmentHeight: 25,
+    maxOffsetX: 15,
+    maxOffsetY: 15,
+    maxRotation: 0.2,
+    minScale: 0.95,
+    maxScale: 1.05
+};
+
+// Color variables
+let bgColor = '#000000';
+let textColor = '#FFFFFF';
+
+function changeColors() {
+    // Generate random hex colors
+    bgColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+    textColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+    
+    // Regenerate all letters with new color
+    regenerateAllLetters();
+}
+
+function downloadImage() {
+    // Save the canvas as PNG
+    saveCanvas('broken-type', 'png');
+}
+
+function togglePanel() {
+    let panel = document.getElementById('controls');
+    let btn = document.getElementById('toggleControls');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        btn.style.display = 'none';
+    } else {
+        panel.style.display = 'none';
+        btn.style.display = 'block';
+    }
+}
+
+// Setup slider listeners
+window.addEventListener('load', function() {
+    // Font Size
+    document.getElementById('fontSizeSlider').addEventListener('input', function(e) {
+        controlVars.fontSize = parseFloat(e.target.value);
+        fontSize = controlVars.fontSize;
+        textSize(fontSize);
+        regenerateAllLetters();
+    });
+    
+    // Min Segment Height
+    document.getElementById('minSegmentSlider').addEventListener('input', function(e) {
+        controlVars.minSegmentHeight = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Max Segment Height
+    document.getElementById('maxSegmentSlider').addEventListener('input', function(e) {
+        controlVars.maxSegmentHeight = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Max Offset X
+    document.getElementById('maxOffsetXSlider').addEventListener('input', function(e) {
+        controlVars.maxOffsetX = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Max Offset Y
+    document.getElementById('maxOffsetYSlider').addEventListener('input', function(e) {
+        controlVars.maxOffsetY = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Max Rotation
+    document.getElementById('maxRotationSlider').addEventListener('input', function(e) {
+        controlVars.maxRotation = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Min Scale
+    document.getElementById('minScaleSlider').addEventListener('input', function(e) {
+        controlVars.minScale = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+    
+    // Max Scale
+    document.getElementById('maxScaleSlider').addEventListener('input', function(e) {
+        controlVars.maxScale = parseFloat(e.target.value);
+        regenerateAllLetters();
+    });
+});
+    </script>
+    
+    <script>
+let typedText = "";
+let letterGraphics = [];
+let fontSize = 140;
+let cursorVisible = true;
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    textFont('Arial');
+    textSize(fontSize);
+    textAlign(LEFT, BASELINE);
+    background(bgColor);
+}
+
+function draw() {
+    background(bgColor);
+    
+    // Calculate total width of all letters
+    let totalWidth = 0;
+    for (let i = 0; i < letterGraphics.length; i++) {
+        let letter = letterGraphics[i];
+        if (letter.char === ' ') {
+            totalWidth += fontSize * 0.4;
+        } else {
+            totalWidth += letter.width + 15;
+        }
+    }
+    
+    // Center the text horizontally
+    let xPos = (width - totalWidth) / 2;
+    
+    // Draw all broken letters
+    for (let i = 0; i < letterGraphics.length; i++) {
+        let letter = letterGraphics[i];
+        
+        if (letter.char === ' ') {
+            xPos += fontSize * 0.4;
+        } else {
+            drawBrokenLetter(letter, xPos, height/2);
+            xPos += letter.width + 15;
+        }
+    }
+    
+    // Blinking cursor
+    if (frameCount % 60 < 30) {
+        stroke(textColor);
+        strokeWeight(3);
+        line(xPos, height/2 - fontSize/2, xPos, height/2 + fontSize/2);
+    }
+}
+
+function keyTyped() {
+    if (key && key.length === 1) {
+        console.log('Key typed:', key);
+        createBrokenLetter(key);
+    }
+    return false;
+}
+
+function keyPressed() {
+    if (keyCode === BACKSPACE) {
+        letterGraphics.pop();
+        typedText = typedText.slice(0, -1);
+        return false;
+    } else if (keyCode === ENTER) {
+        letterGraphics = [];
+        typedText = "";
+        return false;
+    }
+}
+
+function createBrokenLetter(char) {
+    console.log('Creating letter:', char);
+    
+    if (char === ' ') {
+        letterGraphics.push({
+            char: ' ',
+            width: fontSize * 0.4,
+            segments: []
+        });
+        typedText += char;
+        return;
+    }
+    
+    // Create a graphics buffer to draw the letter
+    let pg = createGraphics(fontSize * 2, fontSize * 2);
+    pg.textFont('Arial');
+    pg.textSize(fontSize);
+    pg.textAlign(LEFT, BASELINE);
+    pg.fill(textColor);
+    pg.noStroke();
+    pg.text(char, fontSize * 0.2, fontSize * 1.2);
+    
+    // Get the width of the character
+    pg.loadPixels();
+    let charWidth = textWidth(char);
+    
+    // Break the letter into random segments using control variables
+    let segments = [];
+    let segmentHeight = random(controlVars.minSegmentHeight, controlVars.maxSegmentHeight);
+    
+    for (let y = 0; y < fontSize * 1.8; y += segmentHeight) {
+        let segmentGraphic = createGraphics(fontSize * 2, segmentHeight + 2);
+        segmentGraphic.copy(pg, 0, y, fontSize * 2, segmentHeight + 2, 0, 0, fontSize * 2, segmentHeight + 2);
+        
+        // Random displacement using control variables
+        let offsetX = random(-controlVars.maxOffsetX, controlVars.maxOffsetX);
+        let offsetY = random(-controlVars.maxOffsetY, controlVars.maxOffsetY);
+        let rotation = random(-controlVars.maxRotation, controlVars.maxRotation);
+        let scaleX = random(controlVars.minScale, controlVars.maxScale);
+        
+        segments.push({
+            graphic: segmentGraphic,
+            y: y,
+            offsetX: offsetX,
+            offsetY: offsetY,
+            rotation: rotation,
+            scaleX: scaleX,
+            height: segmentHeight
+        });
+        
+        // Randomly vary the next segment height
+        segmentHeight = random(controlVars.minSegmentHeight, controlVars.maxSegmentHeight);
+    }
+    
+    letterGraphics.push({
+        char: char,
+        width: charWidth,
+        segments: segments
+    });
+    
+    typedText += char;
+}
+
+function drawBrokenLetter(letter, x, y) {
+    push();
+    translate(x, y - fontSize);
+    
+    for (let segment of letter.segments) {
+        push();
+        
+        // Apply transformations
+        translate(fontSize, segment.y + segment.height/2);
+        rotate(segment.rotation);
+        scale(segment.scaleX, 1);
+        translate(-fontSize + segment.offsetX, -segment.height/2 + segment.offsetY);
+        
+        // Draw the segment
+        image(segment.graphic, 0, 0);
+        
+        pop();
+    }
+    
+    pop();
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+}
+
+function regenerateAllLetters() {
+    // Store all the characters
+    let chars = letterGraphics.map(l => l.char);
+    
+    // Clear the array
+    letterGraphics = [];
+    
+    // Recreate each letter with new settings
+    for (let char of chars) {
+        if (char === ' ') {
+            letterGraphics.push({
+                char: ' ',
+                width: fontSize * 0.4,
+                segments: []
+            });
+        } else {
+            // Create a graphics buffer to draw the letter
+            let pg = createGraphics(fontSize * 2, fontSize * 2);
+            pg.textFont('Arial');
+            pg.textSize(fontSize);
+            pg.textAlign(LEFT, BASELINE);
+            pg.fill(textColor);
+            pg.noStroke();
+            pg.text(char, fontSize * 0.2, fontSize * 1.2);
+            
+            // Get the width of the character
+            pg.loadPixels();
+            textSize(fontSize);
+            let charWidth = textWidth(char);
+            
+            // Break the letter into random segments using control variables
+            let segments = [];
+            let segmentHeight = random(controlVars.minSegmentHeight, controlVars.maxSegmentHeight);
+            
+            for (let y = 0; y < fontSize * 1.8; y += segmentHeight) {
+                let segmentGraphic = createGraphics(fontSize * 2, segmentHeight + 2);
+                segmentGraphic.copy(pg, 0, y, fontSize * 2, segmentHeight + 2, 0, 0, fontSize * 2, segmentHeight + 2);
+                
+                // Random displacement using control variables
+                let offsetX = random(-controlVars.maxOffsetX, controlVars.maxOffsetX);
+                let offsetY = random(-controlVars.maxOffsetY, controlVars.maxOffsetY);
+                let rotation = random(-controlVars.maxRotation, controlVars.maxRotation);
+                let scaleX = random(controlVars.minScale, controlVars.maxScale);
+                
+                segments.push({
+                    graphic: segmentGraphic,
+                    y: y,
+                    offsetX: offsetX,
+                    offsetY: offsetY,
+                    rotation: rotation,
+                    scaleX: scaleX,
+                    height: segmentHeight
+                });
+                
+                // Randomly vary the next segment height
+                segmentHeight = random(controlVars.minSegmentHeight, controlVars.maxSegmentHeight);
+            }
+            
+            letterGraphics.push({
+                char: char,
+                width: charWidth,
+                segments: segments
+            });
+        }
+    }
+}
+    </script>
+</body>
+</html>
